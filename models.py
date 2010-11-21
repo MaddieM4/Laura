@@ -15,16 +15,23 @@ class WordChain(db.model):
 	word8 = db.StringProperty()
 
 class Fingerprint(db.model):
-	state = enum [normal, building]
-	author = string
-	date = date
-	parent = otherFingerprint
-	refers_to = blip identifier/location
+	state = db.StringProperty(required=True, 
+		choices = set(['normal', 'building', 'cancelled']))
+	author = db.EmailProperty(required=True)
+	date = db.DateTimeProperty(auto_now_add=True)
+	parent = db.SelfReferenceProperty()
+	fulltext = db.TextProperty()
+	wave = db.StringProperty()
+	wavelet = db.StringProperty()
+	blip = db.StringProperty()
+	build_count = db.IntegerProperty()
+	build_weight= db.FloatProperty()
 
 class WordResult(db.model):
-	fingerprint = fingerprint
-	chain = wordchain
-	result = string
-	count = integer
+	fingerprint = db.ReferenceProperty(Fingerprint, required=True)
+	chain = db.ReferenceProperty(WordChain, required=True)
+	result = db.StringProperty(required=True)
+	count = db.IntegerProperty(required=True)
 
-
+def fromkey(keystring):
+	return db.get(db.Key(keystring))

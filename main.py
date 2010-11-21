@@ -4,23 +4,18 @@ from waveapi import events
 from waveapi import robot
 from waveapi import appengine_robot_runner
 
-def authorize():
-	robot.setup_oauth(
-		269341747276,
-		'TLICc/8M9DzMOBRyzar+EfEZ',
-		server_rpc_base="http://www-opensocial.googleusercontent.com/api/rpc"
-		)
+import markov
+import dbtools
 
 def OnWaveletSelfAdded(event, wavelet):
 	# Add all blips in wave to fingerprint database
-	pass
+	for i in wavelet.blips:
+		dbtools.analyze_blip(i)
 
-def OnBlipSubmitted(event, wavelet):
-	# Add new blip to database
-	# Connect fingerprint to all previous fingerprints
-	# Build response fingerprint
-	# Use response fingerprint to reply
-	pass
+def OnBlipSubmitted(properties, wavelet):
+	# Add new blip to database and set up to reply to it
+	blip = wavelet.GetBlipById(properties['blipId'])
+	dbtools.start_reply(blip)
 
 if __name__ == '__main__':
 	laura = robot.Robot('Laura the Robot',

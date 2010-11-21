@@ -8,13 +8,17 @@ import re
 
 def build_response(fingerprint):
 	# build a response text and submit the blip
-	if dbtools.response_cancelled(fingerprint):
+	if dbtools.state(fingerprint) == 'cancelled':
 		return dbtools.CANCELLED
 	text = ["--start*"]
+	wresults = fingerprint.WordResults_set
 	while 1:
-		poss= dbtools.get_possibilities(fingerprint, text[USE_CHAIN_LENGTH:])
+		poss= dbtools.get_possibilities(wresults, text[USE_CHAIN_LENGTH:])
 		picked = possibilities_pick_option(poss)
-		text.append(picked)
+		if picked==False:
+			text = ["--start*"]
+		else:
+			text.append(picked)
 		if picked=="--end*":
 			break
 	dbtools.reply(fingerprint, " ".join(text))
@@ -36,13 +40,18 @@ def possibilities_pick_option(poss):
 	return False
 
 def build_markov_dict(text):
-	''' Returns a dict where the keys are tuples that include the resultant word,
-	and the values are the counts of that event. '''
-	text = re.sub(' +',' ',text.replace('\n', ' --paragraph* '))
+	''' Returns a dict where the keys are tuples that include the 
+	resultant word, and the values are the counts of that event. 
+
+	All tuples are of length USE_CHAIN_LENGTH+1, though they may
+	contain empty strings at the beginning for spots that would
+	be prior to --start*. '''
+	text = "--start* "+text+" --end*"
+	text = re.sub(' +',' ',re.sub('\n+', ' --paragraph* ', text))
 	splitted = text.split()
 	finaldict = {}
-	for i in range(1,len(splitted)-1):
-		tup = tuple(splitted[max(i-USE_CHAIN_LENGTH,0):i])
+	for i in range(1,len(splitted)):
+		tup = tuple([""]*max(USE_CHAIN_LENGTH-i,0)+splitted[max(i-USE_CHAIN_LENGTH,0):(i+1)])
 		if tup in finaldict:
 			finaldict[tup] += 1
 		else:
