@@ -1,12 +1,15 @@
+import basics
 import models
 import doitlater
-import .
 from waveapi import robot
 
 CANCELLED = -2
 
 def fingerprint_state(fingerprint):
 	return fingerprint.state
+
+def cancel(fingerprint):
+	fingerprint.state = "cancelled"
 
 def get_possibilities(wresults, preceding_words):
 	''' Returns a one-level dict where keys are string-form 
@@ -21,24 +24,29 @@ def get_possibilities(wresults, preceding_words):
 		word = i.result
 		if word in results:
 			results[word] += i.count
-		else
+		else:
 			results[word] = i.count
 	return results
 
 def add_counts(fingerprint, tupledict):
+	''' Takes a dict in the same format as returned by 
+	markov.build_markov_dict, that is, tuples locked at length
+	basics.USE_CHAIN_LENGTH+1, where the last item is the result, and
+	the preceding items are (possibly blank) words leading up to it.'''
 	for i in tupledict:
 		# find or create chain
 		wchainsGQL = models.WordChain.all()
-		for x in range(USE_CHAIN_LENGTH):
+		for x in range(basics.USE_CHAIN_LENGTH):
 			wchainsGQL.filter('word'+str(x+1)+' =',
-				i[USE_CHAIN_LENGTH+1-x])
+				i[basics.USE_CHAIN_LENGTH-1-x])
 		wchains = wchainsGQL.fetch(1)
 		if wchains == []:
-			chain = models.WordChain()
-			chain.word1 = i[3]
-			chain.word2 = i[2]
-			chain.word3 = i[1]
-			chain.word4 = i[0]
+			chain = models.WordChain(
+				word1=i[3],
+				word2=i[2],
+				word3=i[1],
+				word4=i[0]
+				)
 			chain.put()
 		else:
 			chain = wchains[0]
@@ -46,17 +54,37 @@ def add_counts(fingerprint, tupledict):
 		counter = models.WordResult.all().filter(
 			'fingerprint =',fingerprint
 			).filter('chain =',chain
-			).filter('result =',i[USE_CHAIN_LENGTH]).fetch(1)
-		if counter = []:
-			counter = models.WordResult()
-			counter.fingerprint = fingerprint
-			counter.chain=chain
-			counter.result = i[USE_CHAIN_LENGTH]
+			).filter('result =',i[basics.USE_CHAIN_LENGTH]).fetch(1)
+		if counter == []:
+			counter = models.WordResult(
+				fingerprint = fingerprint,
+				chain = chain,
+				result = i[basics.USE_CHAIN_LENGTH],
+				count = 0
+				)
 		else:
 			counter = counter[0]
 		# Increment and save
 		counter.count += 1
 		counter.put()
+
+def fuse(f_from, f_into, amount):
+	t = make_tupledict(f_from)
+	for x in t:
+		t[x] *= amount
+	add_counts(f_into, t)
+
+def make_tupledict(fingerprint):
+	tupledict = {}
+	for r in fingerprint.wordresult_set:
+		chain = r.chain
+		key = (chain.word4,
+			chain.word3,
+			chain.word2,
+			chain.word1,
+			r.result)
+		tupledict[key] = r.count
+	return tupledict
 
 def match(wchain, matchagainst):
 	l = len(matchagainst)
@@ -66,13 +94,13 @@ def match(wchain, matchagainst):
 		wchain.word1]
 	if wres[-l:] == list(matchagainst):
 		return True
-	else
+	else:
 		return False
 
 def reply(fingerprint, text):
-	authorize()
+	basics.authorize()
 	wavelet = robot.fetch_wavelet(fingerprint.wave_id,fingerprint.wavelet_id)
-	for i in wavelet.blips:
+	for i in wavelet.root_thread.blips:
 		if i.blip_id==fingerprint.blip:
 			i.reply().GetDocument.SetText(text)
 			break
@@ -89,8 +117,21 @@ def analyze_blip(blip):
 
 def start_reply(blip):
 	f = analyze_blip(blip)
-	doitlater.build_response(f)
-	doitlater.respond(f)
+	doitlater.compare(f)
+	response = start_response_fingerprint(f)
+	doitlater.build_response(response)
+	doitlater.respond(response)
+
+def start_response_fingerprint(fingerprint):
+	child = models.Fingerprint(
+		state = "building",
+		author = "laura-wavebot@appspot.com",
+		parentprint = fingerprint,
+		build_count = 0,
+		build_weight = 0
+	)
+	child.put()
+	return child
 
 def start_fingerprint(blip):
 	if blip.is_root():
@@ -101,12 +142,20 @@ def start_fingerprint(blip):
 			wavelet = blip.wavelet_id,
 			blip = blip.parent_blip_id).fetch(limit=1)[0]
 
-	return models.Fingerprint(
+	f = models.Fingerprint(
 		state="normal",
 		author = blip.creator,
-		parent = parent_fingerprint,
+		parentprint = parent_fingerprint,
 		fulltext = blip.text,
 		wave = blip.wave_id,
 		wavelet = blip.wavelet_id,
 		blip = blip.blip_id
-	).put()
+	)
+	f.put()
+	return f
+
+def setSimilarity(A,B,amount):
+	simA = models.Similarity(fingerprintA=A,fingerprintB=B,value=amount)
+	simB = models.Similarity(fingerprintA=B,fingerprintB=A,value=amount)
+	simA.put()
+	simB.put()

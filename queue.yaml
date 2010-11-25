@@ -1,14 +1,14 @@
 queue:
 - name: markovify-fingerprint
-  rate: 50/s
+  rate: 30/s
 - name: compare-fingerprint
-  rate: 75/s
+  rate: 50/s
   bucket_size: 20
 - name: compare-fingerprint-E50
-  rate: 100/s
+  rate: 50/s
 - name: build-response
   rate: 20/s
 - name: build-response-E50
-  rate: 100/s
+  rate: 50/s
 - name: respond
   rate: 20/m

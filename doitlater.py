@@ -37,6 +37,6 @@ def getkey(dbobj):
 	return str(dbobj.key())
 
 def add_task(queue_name, payload):
-	taskqueue.add(url="/tasks/"+queue_name, 
+	taskqueue.add(url="/queue/"+queue_name, 
 		queue_name=queue_name, 
 		params=payload)

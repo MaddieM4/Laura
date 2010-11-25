@@ -1,8 +1,6 @@
 from google.appengine.ext import db
 
-import .
-
-class WordChain(db.model):
+class WordChain(db.Model):
 	# Store 8, use 4
 	# word1 is adjacent to result
 	word1 = db.StringProperty(required=True)
@@ -14,12 +12,12 @@ class WordChain(db.model):
 	word7 = db.StringProperty()
 	word8 = db.StringProperty()
 
-class Fingerprint(db.model):
+class Fingerprint(db.Model):
 	state = db.StringProperty(required=True, 
 		choices = set(['normal', 'building', 'cancelled']))
 	author = db.EmailProperty(required=True)
 	date = db.DateTimeProperty(auto_now_add=True)
-	parent = db.SelfReferenceProperty()
+	parentprint = db.SelfReferenceProperty()
 	fulltext = db.TextProperty()
 	wave = db.StringProperty()
 	wavelet = db.StringProperty()
@@ -27,11 +25,18 @@ class Fingerprint(db.model):
 	build_count = db.IntegerProperty()
 	build_weight= db.FloatProperty()
 
-class WordResult(db.model):
+class WordResult(db.Model):
 	fingerprint = db.ReferenceProperty(Fingerprint, required=True)
 	chain = db.ReferenceProperty(WordChain, required=True)
 	result = db.StringProperty(required=True)
 	count = db.IntegerProperty(required=True)
+
+class Similarity(db.Model):
+	fingerprintA = db.ReferenceProperty(Fingerprint, required=True, 
+		collection_name="SimilarityA")
+	fingerprintB = db.ReferenceProperty(Fingerprint, required=True,
+		collection_name="SimilarityB")
+	value = db.FloatProperty(required=True)
 
 def fromkey(keystring):
 	return db.get(db.Key(keystring))
