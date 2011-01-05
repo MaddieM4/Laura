@@ -1,7 +1,10 @@
+import urllib
+import logging
 import basics
 import models
 import doitlater
-from waveapi import robot
+
+from google.appengine.api import urlfetch
 
 CANCELLED = -2
 
@@ -13,13 +16,15 @@ def get_possibilities(chainresults, preceding_words):
 	possibilities and the values are the weights.
 	'''
 	results = {}
+	logging.info("GETTING POSS: "+str(preceding_words))
 	for i in chainresults:
 		if match(i[0],preceding_words):
 			word = i[1]
 			if word in results:
-				results[word] += i.count
+				results[word] += i[2]
 			else:
-				results[word] = i.count
+				results[word] = i[2]
+	logging.info(results)
 	return results
 
 def add_counts(fingerprint, tupledict):
@@ -29,13 +34,13 @@ def add_counts(fingerprint, tupledict):
 	the preceding items are (possibly blank) words leading up to it.'''
 	for i in tupledict:
 		# find or create chain
-		chain = models.getChain(i[:-1])
+		chain = models.getChain(list(i[:-1]))
 		# Now we need to find or create the counter
-		counter = models.WordResult.all(keys_only=True).filter(
+		counter = models.WordResult.all().filter(
 			'fingerprint =',fingerprint
 			).filter('chain =',chain
 			).filter('result =',i[basics.USE_CHAIN_LENGTH]).fetch(1)
-		if counter == []:
+		if len(counter) == 0:
 			counter = models.WordResult(
 				fingerprint = fingerprint,
 				chain = chain,
@@ -58,80 +63,55 @@ def make_tupledict(fingerprint):
 	tupledict = {}
 	for r in fingerprint.wordresult_set:
 		chain = r.chain
-		key = (chain.word4,
-			chain.word3,
-			chain.word2,
-			chain.word1,
-			r.result)
+		key = tuple(chain.words[-basics.USE_CHAIN_LENGTH:]+[r.result])
 		tupledict[key] = r.count
 	return tupledict
 
 def match(wchain, matchagainst):
-	l = len(matchagainst)
-	wres = [wchain.word4,
-		wchain.word3,
-		wchain.word2,
-		wchain.word1]
-	if wres[-l:] == list(matchagainst):
+	if wchain.words[-len(matchagainst):] == list(matchagainst):
 		return True
 	else:
 		return False
 
 def reply(fingerprint, text):
-	basics.authorize()
-	wavelet = robot.fetch_wavelet(fingerprint.wave_id,fingerprint.wavelet_id)
-	for i in wavelet.root_thread.blips:
-		if i.blip_id==fingerprint.blip:
-			i.reply().GetDocument.SetText(text)
-			break
-	wavelet.submit()
+	# send POST request to fingerprint.resp_url
+	payload = urllib.urlencode({
+		"key":str(fingerprint.key()),
+		"reply":text
+	})
+	urlfetch.fetch(url=fingerprint.resp_url, 
+		payload=payload,
+		method=urlfetch.POST,
+		headers={'Content-Type':'application/x-www-form-urlencoded'})
+	cancel(fingerprint)
 
-def get_text(fingerprint):
-	return fingerprint.fulltext
-
-def analyze_blip(blip):
-	f = start_fingerprint(blip)
-	# Defer to task queue function for actual analysis
-	doitlater.markovify(f)
-	return f
-
-def start_reply(blip):
-	f = analyze_blip(blip)
-	doitlater.compare(f)
-	response = start_response_fingerprint(f)
-	doitlater.build_response(response)
-	doitlater.respond(response)
-
-def start_response_fingerprint(fingerprint):
-	child = models.Fingerprint(
-		state = "building",
-		author = "laura-wavebot@appspot.com",
-		parentprint = fingerprint,
-		build_count = 0,
-		build_weight = 0
-	)
-	child.put()
-	return child
-
-def start_fingerprint(blip):
-	if blip.is_root():
-		parent_fingerprint = None
-	else:
-		parent_fingerprint = models.Fingerprint.all().filter(
-			wave = blip.wave_id,
-			wavelet = blip.wavelet_id,
-			blip = blip.parent_blip_id).fetch(limit=1)[0]
-
+def start_response_fingerprint(fingerprint, url):
+	logging.info(url)
+	logging.info(type(url))
+	logging.info(models.Fingerprint.resp_url)
 	f = models.Fingerprint(
-		state="normal",
-		author = blip.creator,
-		parentprint = parent_fingerprint,
-		fulltext = blip.text,
-		wave = blip.wave_id,
-		wavelet = blip.wavelet_id,
-		blip = blip.blip_id
+		state = "building",
+		author = "laura-robot@appspot.com",
+		parentprint = fingerprint,
+		resp_url = url,
+		build_count = 0,
+		build_weight = 0.0
 	)
 	f.put()
+	doitlater.build_response(f)
+	doitlater.respond(f)
+	return f
+
+def start_fingerprint(text, creator, parentkey):
+	f = models.Fingerprint(
+		state="normal",
+		author = creator,
+		parentprint = models.fromkey(parentkey),
+		fulltext = text
+	)
+	f.put()
+	doitlater.markovify(f)
+	doitlater.compare(f)
 	return f
 
 def setSimilarity(A,B,amount):

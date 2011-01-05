@@ -3,15 +3,8 @@ from google.appengine.ext import db
 
 class WordChain(db.Model):
 	# Store 8, use 4
-	# word1 is adjacent to result
-	word1 = db.StringProperty(required=True)
-	word2 = db.StringProperty()
-	word3 = db.StringProperty()
-	word4 = db.StringProperty()
-	word5 = db.StringProperty()
-	word6 = db.StringProperty()
-	word7 = db.StringProperty()
-	word8 = db.StringProperty()
+	# words are in same order as src text
+	words = db.StringListProperty(required=True)
 
 class Fingerprint(db.Model):
 	state = db.StringProperty(required=True, 
@@ -20,9 +13,7 @@ class Fingerprint(db.Model):
 	date = db.DateTimeProperty(auto_now_add=True)
 	parentprint = db.SelfReferenceProperty()
 	fulltext = db.TextProperty()
-	wave = db.StringProperty()
-	wavelet = db.StringProperty()
-	blip = db.StringProperty()
+	resp_url = db.LinkProperty()
 	build_count = db.IntegerProperty()
 	build_weight= db.FloatProperty()
 
@@ -45,20 +36,19 @@ def fromkey(keystring):
 	except:
 		return None
 
-def makeChain(wlist):
-	chain = WordChain(key_name=getChainKeystring(wlist),
-		word1 = wlist[3],
-		word2 = wlist[2],
-		word3 = wlist[1],
-		word4 = wlist[0])
-	chain.put()
-	return chain
-
 def getChain(wlist):
-	return fromkey(getChainKeystring(wlist)) or makeChain(wlist)
+	return WordChain.get_or_insert(getChainKeystring(wlist),words=wlist)
 
 def getChainKeystring(wlist):
 	letters = ""
 	for i in wlist:
-		letters += i[0]
+		if len(i) > 0:
+			letters += i[0]
+		else:
+			letters += "~"
 	return letters + md5.new("".join(wlist)).hexdigest()[:10]
+
+def purge():
+	for m in [WordChain, WordResult, Similarity, Fingerprint]:
+		for i in m.all():
+			i.delete()

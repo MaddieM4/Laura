@@ -5,27 +5,34 @@ import basics
 import dbtools
 import random
 import re
+import logging
 
 def respond(fingerprint):
-	# build a response text and submit the blip
+	# build a response text and submit the response
 	if fingerprint.state != 'building':
-		return dbtools.CANCELLED
+		return -2
 	text = ["--start*"]
-	wresults = fingerprint.wordresults_set.fetch(1000)
+	wresults = fingerprint.wordresult_set.fetch(1000)
 	chrestuples = []
 	for i in wresults:
-		chrestuples.push((i.chain), i.result)
+		chrestuples.append((i.chain, i.result, i.count))
+	attempts = 0
 	while 1:
-		poss= dbtools.get_possibilities(wresults, text[basics.USE_CHAIN_LENGTH:])
+		attempts +=1
+		if attempts > 2000: return 0
+		poss= dbtools.get_possibilities(chrestuples, 
+			text[-basics.USE_CHAIN_LENGTH:])
 		picked = possibilities_pick_option(poss)
 		if picked==False:
+			logging.info(" ".join(text))
 			text = ["--start*"]
 		else:
 			text.append(picked)
 		if picked=="--end*":
 			break
-	dbtools.reply(fingerprint.parentprint, " ".join(text))
-	dbtools.cancel(fingerprint)
+	logging.info('Replying: "%s"' % " ".join(text))
+	dbtools.reply(fingerprint, " ".join(text))
+	return 1
 
 def build_fingerprint(fingerprint):
 	dbtools.add_counts(fingerprint, build_markov_dict(fingerprint.fulltext))
@@ -36,7 +43,10 @@ def possibilities_totalweight(poss):
 	return total
 
 def possibilities_pick_option(poss):
-	marker = possibilities_totalweight(poss)*random.random()
+	max = possibilities_totalweight(poss)
+	marker = max*random.random()
+	logging.info("Max "+str(max))
+	logging.info("Mar "+str(marker))
 	for i in poss:
 		marker -= poss[i]
 		if marker < 0:

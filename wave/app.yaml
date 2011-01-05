@@ -6,6 +6,8 @@ api_version: 1
 handlers:
 - url: /_wave/.*
   script: main.py
+- url: /forward.*
+  script: forward.py
 - url: /queue/.*
   script: tq.py
 - url: /static

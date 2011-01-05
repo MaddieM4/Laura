@@ -8,8 +8,6 @@ import logging
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp.util import run_wsgi_app
 
-from waveapi import robot
-
 class Markovify(webapp.RequestHandler):
 	def post(self):
 		''' Add a fingerprint to the database '''
@@ -25,16 +23,22 @@ class Compare(webapp.RequestHandler):
 		''' Compare two already-markovized fingerprints. Produce
 		2 models.Similarity objects, sacrificing storage space
 		for CPU speed. '''
+		if self.request.get('A') == self.request.get('B'):
+			self.response.out.write("done")
+			return
 		first = models.fromkey(self.request.get('A'))
 		second = models.fromkey(self.request.get('B'))
+		if first.state != "normal" or second.state != "normal":
+			logging.info("State != normal")
+			return
 		firstset = dbtools.make_tupledict(first)
 		secondset = dbtools.make_tupledict(second)
 		self.simMatch = 0
 		self.simTotal = 0
 		for i in range(basics.USE_CHAIN_LENGTH):
 			self.compare(firstset, secondset, i)
-		dbtools.setSimilarity(first, second, self.simMatch/self.simTotal)
-		self.response.out.write("")
+		dbtools.setSimilarity(first, second, float(self.simMatch)/self.simTotal)
+		self.response.out.write("done")
 
 	def compare(self, td1, td2, level):
 		comp1 = self.compile(td1, level)
@@ -73,22 +77,61 @@ class Compare(webapp.RequestHandler):
 		self.simTotal += 1
 
 class Build(webapp.RequestHandler):
+	class Role:
+		def __init__(self):
+			self.authors = []
+			self.roles = []
+
+		def insert(self, author):
+			if author in self.authors:
+				role = self.authors.index(author)
+			else:
+				self.authors.append(author)
+				role = len(self.authors)-1
+			self.roles.append(role)
+			return role
+
 	def post(self):
 		''' Use saved comparisons to compare chain similarity,
 		then use dbtools.add_counts to merge result into
 		the response fingerprint '''
 		response = models.fromkey(self.request.get('response'))
 		sample =   models.fromkey(self.request.get('sample'))
+		if sample.state != "normal":
+			return
+		logging.info(response.key())
 		cA = response.parentprint
 		cB = sample.parentprint
+		roleA = Build.Role()
+		roleB = Build.Role()
 		simtotal = 0
 		while cA and cB:
-			sim = self.findSimilarity(cA,cB)
-			# Fail if the comparison is not ready
-			if not sim.value: self.error(500)
-			simtotal += sim.value
+			try:
+				sim = self.findSimilarity(cA,cB)
+				simvalue = sim.value*.8
+				if cA.author == cB.author:
+					simvalue += .1
+				if roleA.insert(cA.author) == roleB.insert(cB.author):
+					simvalue += .1
+			except IndexError:
+				if cA.key() == cB.key():
+					simvalue = 1.0
+				else:
+					# Fail if the comparison is not ready
+					logging.info("Comparison not ready")
+					logging.info(cA.key())
+					logging.info(cB.key())
+					logging.info(cA.key() == cB.key())
+					self.error(500)
+					return
+			simtotal += simvalue
 			cA = cA.parentprint
 			cB = cB.parentprint
+		logging.info(response.build_count)
+		response.build_count += 1
+		response.build_weight += simtotal
+		response.put()
+		logging.info(response.build_count)
 		dbtools.fuse(sample, response, simtotal)
 
 	def findSimilarity(self, fA, fB):
@@ -102,7 +145,15 @@ class Respond(webapp.RequestHandler):
 		''' Use a built response fingerprint to create a response
 		string, then use it to actually respond.'''
 		response_f = models.fromkey(self.request.get('key'))
-		markov.respond(response_f)
+		if response_f.build_count < 5:
+			logging.info(str(response_f.key()))
+			logging.info("Not enough build_count (%d)" % response_f.build_count)
+			self.error(500)
+		else:
+			r = markov.respond(response_f)
+			if r != 1:
+				logging.info("MARKOV CODE "+str(r))
+				self.error(500)
 
 class Compare_Expand(webapp.RequestHandler):
 	def post(self):

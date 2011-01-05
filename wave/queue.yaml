@@ -1,0 +1,7 @@
+queue:
+- name: load-wavelet
+  rate: 12/m
+- name: process-wavelet
+  rate: 10/s
+- name: insert-blip
+  rate: 10/s
