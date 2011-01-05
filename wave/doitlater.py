@@ -5,7 +5,9 @@ from google.appengine.api.labs import taskqueue
 def load_wavelet(wave_id, wavelet_id):
 	''' Load a wavelet from the Google Wave server and into cold storage,
 	then start a process-wavelet task.'''
-	proc_db("load-wavelet",models.getDBWavelet(wave_id,wavelet_id))
+	wavelet = models.getDBWavelet(wave_id,wavelet_id)
+	wavelet.put()
+	proc_db("load-wavelet",wavelet)
 
 def process_wavelet(dbw):
 	''' Start an insert-blip task for every blip in the freeze '''
@@ -14,7 +16,7 @@ def process_wavelet(dbw):
 def insert_blip(dbw, id):
 	''' Takes a freeze and a blip ID '''
 	add_task("insert-blip", {
-		'wavelet':str(dbobj.key()),
+		'wavelet':str(dbw.key()),
 		'blip_id':id
 	})
 

@@ -9,19 +9,23 @@ class Forwarder(webapp.RequestHandler):
 	def post(self):
 		corekey = self.request.get('key')
 		text = self.request.get('reply')
-		parent_f = models.get(corekey).response_to
-		laura = makerobot.make_authorized()		
-		wavelet = laura.fetch_wavelet(parent_f.wave, wavelet_id=parent_f.wavelet)
+		parent_f = models.get_response_by_corekey(corekey).response_to
+		laura = makerobot.make_authorized()
+		dbw = parent_f.wavelet		
+		wavelet = laura.fetch_wavelet(dbw.wave_id, wavelet_id=dbw.wavelet_id)
 		for i in wavelet.blips:
-			if i.blip_id == parent_f.blip:
-				models.insert(i.reply(text), False)
+			if i == parent_f.blip:
+				reply = wavelet.blips[i].continue_thread()
+				reply.append_markup(text)
+				laura.submit(wavelet)
+				models.insert(reply, False, author_override=True)
 				break
 
 def main():
-run_wsgi_app(webapp.WSGIApplication([
-        ('/forward', Forwarder),
-        ('/forward/', Forwarder),
-    ]))
+	run_wsgi_app(webapp.WSGIApplication([
+		('/forward', Forwarder),
+		('/forward/', Forwarder)
+	]))
 
 if __name__ == '__main__':
-    main()
+	main()

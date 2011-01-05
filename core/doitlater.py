@@ -5,7 +5,7 @@ def markovify(fingerprint):
 	proc_db("markovify-fingerprint", fingerprint)
 
 def respond(fingerprint):
-	proc_db("respond", fingerprint)
+	proc_db("respond", fingerprint, countdown=10)
 
 def compareE50_expand(fpkeyA, fpkeyB):
 	add_task('compare-fingerprint',{'A':fpkeyA,'B':fpkeyB})
@@ -30,13 +30,19 @@ def E50(queue_name,model,target):
 			'offset': i*50
 			})
 
-def proc_db(queue,obj):
+def purge():
+	taskqueue.add(url="/queue/purge", 
+		queue_name="purge",
+		method="GET") 	
+
+def proc_db(queue,obj, countdown=0):
 	add_task(queue, {'key':getkey(obj)})
 
 def getkey(dbobj):
 	return str(dbobj.key())
 
-def add_task(queue_name, payload):
+def add_task(queue_name, payload, countdown=0):
 	taskqueue.add(url="/queue/"+queue_name, 
 		queue_name=queue_name, 
-		params=payload)
+		params=payload,
+		countdown=countdown)

@@ -1,6 +1,6 @@
 # models
 import logging
-
+import makerobot
 import urllib
 from django.utils import simplejson as json
 
@@ -8,7 +8,7 @@ from google.appengine.ext import db
 from google.appengine.api import urlfetch
 from waveapi import wavelet as apiwavelet
 
-class DBWavelet(db.Models):
+class DBWavelet(db.Model):
 	''' A wavelet in cold storage. Never trust one of these babies to be
 	100% accurate - remember, it's a snapshot, growing increasingly 
 	irrelevant the longer it's in here.'''
@@ -32,35 +32,44 @@ def fetch(url, payload):
 	return urlfetch.fetch(url, 
 		payload=urllib.urlencode(payload), 
 		method=urlfetch.POST, 
-		headers={'Content-Type': 'application/x-www-form-urlencoded'})
+		headers={'Content-Type': 'application/x-www-form-urlencoded'},
+		deadline=10)
 
-def insert(blip, respond):
+def insert(blip, respond, author_override=False):
 	# Pull out details from blip
 	id = blip.blip_id
 	wave = blip.wave_id
 	wavelet = blip.wavelet_id
 	text = blip.text
-	author = blip.creator
-	parent = blip.parent_blip_id
+	if author_override:
+		author = "laura-wavebot@appspot.com"
+	else:
+		author = blip.creator
+	parentid = blip.parent_blip_id
 	# Send to core
 	url = "http://laura-robot.appspot.com/api/insert"
-	payload = {'parent':parent,'text':text,'author':author}
+	payload = {'parent':parentid,'text':text,'author':author}
 	if respond:
 		payload['responseurl']='http://laura-wavebot.appspot.com/forward'
 	result = fetch(url, payload)
+	logging.info(result.content)
 	rdict = json.loads(result.content)
 	# Insert into DB
 	f = Fingerprint(corekey = rdict['inserted'],
 		wavelet = getDBWavelet(wave,wavelet),
 		blip = id,
-		parentblip = parent).put()
+		parentblip = parentid).put()
 	if respond:
 		ResponsePending(corekey = rdict['response'],
 			response_to = f).put()
 	# cancel any response to parent
-	parent = Fingerprint.all().filter('blip =',parentblip).filter('wave =',wave).filter('wavelet =',wavelet).fetch(1)
-	for i in parent.responsepending_set:
-		cancel(i)
+	try:
+		parent = Fingerprint.all().filter('blip =',parentid).filter('wave =',wave).filter('wavelet =',wavelet).fetch(1)[0]
+		for i in parent.responsepending_set:
+			cancel(i)
+	except IndexError:
+		# No parent, that's cool
+		pass
 
 def cancel(response):
 	# Send to core
@@ -84,7 +93,7 @@ def getDBWavelet(wave, wavelet):
 def storeWavelet(wavelet):
 	''' Takes an API wavelet and returns a DBWavelet '''
 	w = getDBWavelet(wavelet.wave_id, wavelet.wavelet_id)
-	w.jsoncontent = json.dumps(w.serialize())
+	w.jsoncontent = json.dumps(wavelet.serialize())
 	w.put()
 	return w
 
@@ -93,4 +102,10 @@ def getWavelet(wave, wavelet):
 
 def getWaveletFromFreeze(freeze):
 	''' Returns an API wavelet converted from a cold-storage DBWavelet '''
-	return apiwavelet.Wavelet(json=freeze.jsoncontent)
+	return makerobot.make().blind_wavelet(freeze.jsoncontent)
+
+def get_response_by_corekey(corekey):
+	try:
+		return ResponsePending.all().filter('corekey =',corekey).fetch(1)[0]
+	except IndexError:
+		return None

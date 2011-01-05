@@ -30,8 +30,9 @@ def respond(fingerprint):
 			text.append(picked)
 		if picked=="--end*":
 			break
-	logging.info('Replying: "%s"' % " ".join(text))
-	dbtools.reply(fingerprint, " ".join(text))
+	finalreply = " ".join(text[1:-1]).replace("--paragraph*","\n\n").strip()
+	logging.info('Replying: "%s"' % finalreply)
+	dbtools.reply(fingerprint, finalreply)
 	return 1
 
 def build_fingerprint(fingerprint):

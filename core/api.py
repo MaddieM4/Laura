@@ -23,9 +23,9 @@ class Insert(webapp.RequestHandler):
 			r = None
 		logging.debug(f)
 		logging.debug(r)
-		self.response.out.write("{'inserted':'%s'" % str(f.key()))
+		self.response.out.write('{"inserted":"%s"' % str(f.key()))
 		if r:
-			self.response.out.write(",'response':'%s'" % str(r.key()))
+			self.response.out.write(',"response":"%s"' % str(r.key()))
 		self.response.out.write('}')
 
 class Cancel(webapp.RequestHandler):
@@ -112,8 +112,9 @@ class Display(webapp.RequestHandler):
 
 class Purge(webapp.RequestHandler):
 	def get(self):
-		models.purge()
-		self.response.out.write("Purge completed")
+		import doitlater
+		doitlater.purge()
+		self.response.out.write("Purge Initiated")
 
 def main():
     run_wsgi_app(webapp.WSGIApplication([

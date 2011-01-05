@@ -50,5 +50,5 @@ def getChainKeystring(wlist):
 
 def purge():
 	for m in [WordChain, WordResult, Similarity, Fingerprint]:
-		for i in m.all():
+		for i in m.all(keys_only=True):
 			i.delete()

@@ -8,4 +8,3 @@ handlers:
   script: api.py
 - url: /queue/.*
   script: tq.py
-

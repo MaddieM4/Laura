@@ -11,4 +11,6 @@ queue:
 - name: build-response-E50
   rate: 50/s
 - name: respond
-  rate: 20/m
+  rate: 1/s
+- name: purge
+  rate: 2/s

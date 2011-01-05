@@ -167,6 +167,11 @@ class Build_Expand(webapp.RequestHandler):
 			self.request.get('offset'),
 			doitlater.buildE50_expand)
 
+class Purge(webapp.RequestHandler):
+	def get(self):
+		models.purge()
+		self.response.out.write("Purge completed")
+
 def expand(target, offset, callback):
 	fingers = models.Fingerprint.all().order('date').fetch(50,int(offset))
 	for finger in fingers:
@@ -179,7 +184,8 @@ def main():
         ('/queue/compare-fingerprint-E50', Compare_Expand),
         ('/queue/build-response', Build),
         ('/queue/build-response-E50', Build_Expand),
-        ('/queue/respond', Respond)
+        ('/queue/respond', Respond),
+        ('/queue/purge', Purge)
     ]))
 
 if __name__ == '__main__':
