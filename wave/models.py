@@ -8,23 +8,27 @@ from google.appengine.ext import db
 from google.appengine.api import urlfetch
 from waveapi import wavelet as apiwavelet
 
-class DBWavelet(db.Model):
-	''' A wavelet in cold storage. Never trust one of these babies to be
-	100% accurate - remember, it's a snapshot, growing increasingly 
-	irrelevant the longer it's in here.'''
+class Wavelet(db.Model):
 	wave_id = db.StringProperty()
 	wavelet_id = db.StringProperty()
-	jsoncontent = db.TextProperty()
+	activated = db.BooleanProperty(default=True)
 
 class Fingerprint(db.Model):
 	corekey = db.StringProperty()
-	wavelet = db.ReferenceProperty(DBWavelet)
+	wavelet = db.ReferenceProperty(Wavelet)
 	blip = db.StringProperty()
-	parentblip = db.StringProperty()
+	parentblip = db.SelfReferenceProperty()
+	fulltext = db.TextProperty()
+	creator = db.EmailProperty()
 
 class ResponsePending(db.Model):
 	corekey = db.StringProperty()
 	response_to = db.ReferenceProperty(Fingerprint)
+
+def purge():
+	for i in [Wavelet, Fingerprint, ResponsePending]:
+		for d in i:
+			d.delete()
 
 def fetch(url, payload):
 	logging.info(url)
@@ -35,41 +39,62 @@ def fetch(url, payload):
 		headers={'Content-Type': 'application/x-www-form-urlencoded'},
 		deadline=10)
 
-def insert(blip, respond, author_override=False):
+class ParentNotInserted(Exception):
+	def __init__(self, parent)
+		Exception.__init__(self)
+		self.fingerprint = parent
+
+	def __str__(self):
+		return "Parent Not Inserted: blip %s" % str(self.fingerprint.blip)
+
+def insert(blip, respond):
 	# Pull out details from blip
-	id = blip.blip_id
-	wave = blip.wave_id
-	wavelet = blip.wavelet_id
-	text = blip.text
-	if author_override:
+	id = blip.blip
+	wavelet = blip.wavelet
+	text = blip.fulltext
+	parent = blip.parentblip
+
+	# Check for "cheat codes"
+	if "ASLAURA" in text:
 		author = "laura-wavebot@appspot.com"
+		text.replace("ASLAURA","")
 	else:
 		author = blip.creator
-	parentid = blip.parent_blip_id
+
+	putwavelet = False
+	if "STARTLAURA" in text:
+		wavelet.activated = True
+		putwavelet = True
+		text.replace("STARTLAURA","")
+	if "STOPLAURA" in text:
+		wavelet.activated = True
+		putwavelet = True
+		respond = False
+		text.replace("STARTLAURA","")
+	if putwavelet:
+		wavelet.put()
+
 	# Send to core
 	url = "http://laura-robot.appspot.com/api/insert"
-	payload = {'parent':parentid,'text':text,'author':author}
+	payload = {'text':text,'author':author}
+	if parent:
+		if not parent.corekey:
+			raise ParentNotInserted(parent.blip)
+		payload['parent'] = parent.corekey
 	if respond:
 		payload['responseurl']='http://laura-wavebot.appspot.com/forward'
 	result = fetch(url, payload)
 	logging.info(result.content)
 	rdict = json.loads(result.content)
 	# Insert into DB
-	f = Fingerprint(corekey = rdict['inserted'],
-		wavelet = getDBWavelet(wave,wavelet),
-		blip = id,
-		parentblip = parentid).put()
+	blip.corekey = rdict['inserted']
 	if respond:
 		ResponsePending(corekey = rdict['response'],
-			response_to = f).put()
-	# cancel any response to parent
-	try:
-		parent = Fingerprint.all().filter('blip =',parentid).filter('wave =',wave).filter('wavelet =',wavelet).fetch(1)[0]
+			response_to = blip).put()
+	# cancel any responses to parent
+	if parent:
 		for i in parent.responsepending_set:
 			cancel(i)
-	except IndexError:
-		# No parent, that's cool
-		pass
 
 def cancel(response):
 	# Send to core
@@ -81,31 +106,34 @@ def cancel(response):
 def get(strkey):
 	return db.get(db.Key(strkey))
 
-def getDBWavelet(wave, wavelet):
-	''' Finds a DBWavelet with the ID information given, or creates one
+def getWavelet(wave, wavelet):
+	''' Finds a Wavelet with the ID information given, or creates one
 	with no value set to jsoncontent.'''
 	try:
-		return DBWavelet.all().filter('wave_id =',wave).filter(
+		return Wavelet.all().filter('wave_id =',wave).filter(
 			'wavelet_id',wavelet).fetch(1)[0]
 	except IndexError:
-		return DBWavelet(wave_id=wave, wavelet_id=wavelet)
-
-def storeWavelet(wavelet):
-	''' Takes an API wavelet and returns a DBWavelet '''
-	w = getDBWavelet(wavelet.wave_id, wavelet.wavelet_id)
-	w.jsoncontent = json.dumps(wavelet.serialize())
-	w.put()
-	return w
-
-def getWavelet(wave, wavelet):
-	return getWaveletFromFreeze(getDBWavelet(wave,wavelet))
-
-def getWaveletFromFreeze(freeze):
-	''' Returns an API wavelet converted from a cold-storage DBWavelet '''
-	return makerobot.make().blind_wavelet(freeze.jsoncontent)
+		w = Wavelet(wave_id=wave, wavelet_id=wavelet)
+		w.put()
+		return w
 
 def get_response_by_corekey(corekey):
 	try:
 		return ResponsePending.all().filter('corekey =',corekey).fetch(1)[0]
 	except IndexError:
 		return None
+
+def finger_blip(blip, parent, wavelet=None):
+	f = Fingerprint()
+
+	f.blip = blip.blip_id
+	if parent:
+		f.parentblip = parent
+	if wavelet:
+		f.wavelet = wavelet
+	elif parent and parent.wavelet:
+		f.wavelet = parent.wavelet
+	f.fulltext = blip.text.strip()
+	f.creator = blip.creator
+	f.put()
+	return f

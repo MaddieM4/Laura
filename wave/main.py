@@ -12,7 +12,7 @@ def OnWaveletSelfAdded(event, wavelet):
 
 def OnBlipSubmitted(event, wavelet):
 	# Add new blip to database and set up to reply to it
-	models.insert(event.blip, True)
+	doitlater.find_blip(wavelet.wave_id, wavelet.wavelet_id, event.blip)
 
 if __name__ == '__main__':
 	laura = makerobot.make()
