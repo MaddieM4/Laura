@@ -137,3 +137,12 @@ def finger_blip(blip, parent, wavelet=None):
 	f.creator = blip.creator
 	f.put()
 	return f
+
+def load_wavelet(wave_id, wavelet_id):
+	robot = makerobot.make_authorized()
+	return robot.fetch_wavelet(wave_id, wavelet_id=wavelet_id)
+
+def load_wavelet_key(key):
+	dbw = models.get(key)
+	return dbw, load_wavelet(dbw.wave_id, dbw.wavelet_id)
+
