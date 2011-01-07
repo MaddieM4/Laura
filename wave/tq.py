@@ -66,7 +66,7 @@ class Insert(webapp.RequestHandler):
 		models.insert(f, False)
 		for i in f.fingerprint_set:
 			# process children
-			doitlater.insert(i)
+			doitlater.insert_blip(i)
 
 class Scan(webapp.RequestHandler):
 	def get(self):
