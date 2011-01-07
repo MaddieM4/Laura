@@ -169,8 +169,18 @@ class Build_Expand(webapp.RequestHandler):
 
 class Purge(webapp.RequestHandler):
 	def get(self):
+		doitlater.purge()
+		self.response.out.write("Purge initiated")
+
+	def post(self):
 		models.purge()
-		self.response.out.write("Purge completed")
+
+class Cleanup(webapp.RequestHandler):
+	def get(self):
+		for i in models.Fingerprint.all().filter("state =","cancelled"):
+			for r in i.wordresult_set:
+				r.delete()
+			i.delete()
 
 def expand(target, offset, callback):
 	fingers = models.Fingerprint.all().order('date').fetch(50,int(offset))
@@ -185,6 +195,7 @@ def main():
         ('/queue/build-response', Build),
         ('/queue/build-response-E50', Build_Expand),
         ('/queue/respond', Respond),
+        ('/queue/cleanup', Cleanup),
         ('/queue/purge', Purge)
     ]))
 

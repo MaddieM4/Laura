@@ -32,8 +32,7 @@ def E50(queue_name,model,target):
 
 def purge():
 	taskqueue.add(url="/queue/purge", 
-		queue_name="purge",
-		method="GET") 	
+		queue_name="purge") 	
 
 def proc_db(queue,obj, countdown=0):
 	add_task(queue, {'key':getkey(obj)})

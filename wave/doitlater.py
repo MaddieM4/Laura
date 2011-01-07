@@ -1,4 +1,5 @@
 import models
+import logging
 
 from google.appengine.api.labs import taskqueue
 
@@ -15,12 +16,11 @@ def find_blip(wave_id, wavelet_id, blip_id):
 		'blip_id':blip_id
 	})
 
-def insert_blip(dbw, id):
-	''' Takes a freeze and a blip ID '''
-	add_task("insert-blip", {
-		'wavelet':str(dbw.key()),
-		'blip_id':id
-	})
+def insert_blip(fingerprint):
+	''' Takes a Wavelet and a Fingerprint to prepare for sending
+	to the core '''
+	logging.info(str(fingerprint.key()))
+	proc_db("insert-blip",fingerprint)
 
 def purge():
 	add_task("purge",{})

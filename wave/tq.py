@@ -19,7 +19,9 @@ class Load(webapp.RequestHandler):
 			f = models.finger_blip(blip, 
 				cparent, 
 				wavelet=self.dbw)
-			doitlater.insert_blip(f)
+			if cparent == None:
+				# root blip
+				doitlater.insert_blip(f)
 			for rt in blip.reply_threads:
 				self.thread(rt, f)
 			cparent = f
@@ -32,7 +34,7 @@ class Find(webapp.RequestHandler):
 		parent_id = self.thread(fullwavelet.root_thread, None)
 		if not parent_id:
 			logging.info("Hopeless case, parent no longer exists")
-		if parent_id = "root":
+		if parent_id == "root":
 			parent_id = None
 		parent = models.Fingerprint.all().filter('wavelet =',
 			self.dbw).filter('blip =',parent_id)
@@ -43,7 +45,7 @@ class Find(webapp.RequestHandler):
 	def thread(self, thread, parent):
 		cparent = parent
 		for blip in thread.blips:
-			if blip.blip_id = self.blip_id:
+			if blip.blip_id == self.blip_id:
 				if cparent:
 					return cparent.blip_id
 				else:
@@ -62,6 +64,9 @@ class Insert(webapp.RequestHandler):
 		key = self.request.get('key')
 		f = models.get(key)
 		models.insert(f, False)
+		for i in f.fingerprint_set:
+			# process children
+			doitlater.insert(i)
 
 class Scan(webapp.RequestHandler):
 	def get(self):
@@ -81,6 +86,7 @@ class Scan(webapp.RequestHandler):
 class Purge(webapp.RequestHandler):
 	def get(self):
 		doitlater.purge()
+		self.response.out.write("purge initiated")
 
 	def post(self):
 		models.purge()

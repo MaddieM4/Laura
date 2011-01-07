@@ -27,7 +27,7 @@ class ResponsePending(db.Model):
 
 def purge():
 	for i in [Wavelet, Fingerprint, ResponsePending]:
-		for d in i:
+		for d in i.all():
 			d.delete()
 
 def fetch(url, payload):
@@ -40,12 +40,18 @@ def fetch(url, payload):
 		deadline=10)
 
 class ParentNotInserted(Exception):
-	def __init__(self, parent)
+	def __init__(self, blip, parent):
 		Exception.__init__(self)
-		self.fingerprint = parent
+		self.fingerprint = blip
+		self.parent = parent
 
 	def __str__(self):
-		return "Parent Not Inserted: blip %s" % str(self.fingerprint.blip)
+		return 'Parent Not Inserted: blip %s ("%s") > %s ("%s")' % (
+			str(self.parent.blip),
+			self.parent.fulltext[:20],
+			str(self.fingerprint.blip),
+			self.fingerprint.fulltext[:20]
+		)
 
 def insert(blip, respond):
 	# Pull out details from blip
@@ -53,6 +59,7 @@ def insert(blip, respond):
 	wavelet = blip.wavelet
 	text = blip.fulltext
 	parent = blip.parentblip
+	logging.info(parent)
 
 	# Check for "cheat codes"
 	if "ASLAURA" in text:
@@ -79,7 +86,7 @@ def insert(blip, respond):
 	payload = {'text':text,'author':author}
 	if parent:
 		if not parent.corekey:
-			raise ParentNotInserted(parent.blip)
+			raise ParentNotInserted(blip, parent)
 		payload['parent'] = parent.corekey
 	if respond:
 		payload['responseurl']='http://laura-wavebot.appspot.com/forward'
@@ -88,6 +95,7 @@ def insert(blip, respond):
 	rdict = json.loads(result.content)
 	# Insert into DB
 	blip.corekey = rdict['inserted']
+	blip.put()
 	if respond:
 		ResponsePending(corekey = rdict['response'],
 			response_to = blip).put()
@@ -128,6 +136,10 @@ def finger_blip(blip, parent, wavelet=None):
 
 	f.blip = blip.blip_id
 	if parent:
+		logging.info('finger_blip: "%s" > "%s"' % (
+			parent.fulltext[:20],
+			blip.text.strip()[:20]
+		))
 		f.parentblip = parent
 	if wavelet:
 		f.wavelet = wavelet
@@ -143,6 +155,5 @@ def load_wavelet(wave_id, wavelet_id):
 	return robot.fetch_wavelet(wave_id, wavelet_id=wavelet_id)
 
 def load_wavelet_key(key):
-	dbw = models.get(key)
+	dbw = get(key)
 	return dbw, load_wavelet(dbw.wave_id, dbw.wavelet_id)
-

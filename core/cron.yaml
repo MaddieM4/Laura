@@ -1,0 +1,4 @@
+cron:
+- description: Cleanup cancelled fingerprints
+  url: /queue/cleanup
+  schedule: every 15 minutes
