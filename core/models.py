@@ -16,12 +16,13 @@ class Fingerprint(db.Model):
 	resp_url = db.LinkProperty()
 	build_count = db.IntegerProperty()
 	build_weight= db.FloatProperty()
+	build_count_target = db.IntegerProperty()
 
 class WordResult(db.Model):
 	fingerprint = db.ReferenceProperty(Fingerprint, required=True)
 	chain = db.ReferenceProperty(WordChain, required=True)
 	result = db.StringProperty(required=True)
-	count = db.IntegerProperty(required=True)
+	count = db.FloatProperty(required=True)
 
 class Similarity(db.Model):
 	fingerprintA = db.ReferenceProperty(Fingerprint, required=True, 

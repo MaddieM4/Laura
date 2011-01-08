@@ -45,12 +45,12 @@ def add_counts(fingerprint, tupledict):
 				fingerprint = fingerprint,
 				chain = chain,
 				result = i[basics.USE_CHAIN_LENGTH],
-				count = 0
+				count = float(0)
 				)
 		else:
 			counter = counter[0]
 		# Increment and save
-		counter.count += 1
+		counter.count += float(1)
 		counter.put()
 
 def fuse(f_from, f_into, amount):
@@ -89,13 +89,16 @@ def start_response_fingerprint(fingerprint, url):
 	logging.info(url)
 	logging.info(type(url))
 	logging.info(models.Fingerprint.resp_url)
+	target = models.Fingerprint.all().filter('state =','normal').count()
+
 	f = models.Fingerprint(
 		state = "building",
 		author = "laura-robot@appspot.com",
 		parentprint = fingerprint,
 		resp_url = url,
 		build_count = 0,
-		build_weight = 0.0
+		build_weight = 0.0,
+		build_count_target = target
 	)
 	f.put()
 	doitlater.build_response(f)

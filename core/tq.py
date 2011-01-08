@@ -145,7 +145,7 @@ class Respond(webapp.RequestHandler):
 		''' Use a built response fingerprint to create a response
 		string, then use it to actually respond.'''
 		response_f = models.fromkey(self.request.get('key'))
-		if response_f.build_count < 5:
+		if response_f.build_count < response_f.build_count_target:
 			logging.info(str(response_f.key()))
 			logging.info("Not enough build_count (%d)" % response_f.build_count)
 			self.error(500)
