@@ -12,11 +12,10 @@ def OnWaveletSelfAdded(event, wavelet):
 
 def OnBlipSubmitted(event, wavelet):
 	# Add new blip to database and set up to reply to it
-	doitlater.find_blip(wavelet.wave_id, wavelet.wavelet_id, event.blip)
+	doitlater.find_blip(wavelet.wave_id, wavelet.wavelet_id, event.blip.blip_id)
 
 if __name__ == '__main__':
 	laura = makerobot.make()
 	laura.register_handler(events.WaveletSelfAdded, OnWaveletSelfAdded)
-	laura.register_handler(events.BlipSubmitted, OnBlipSubmitted,
-		context = [events.Context.PARENT, events.Context.SELF])
+	laura.register_handler(events.BlipSubmitted, OnBlipSubmitted)
 	appengine_robot_runner.run(laura)

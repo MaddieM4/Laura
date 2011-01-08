@@ -37,7 +37,7 @@ class Find(webapp.RequestHandler):
 		if parent_id == "root":
 			parent_id = None
 		parent = models.Fingerprint.all().filter('wavelet =',
-			self.dbw).filter('blip =',parent_id)
+			self.dbw).filter('blip =',parent_id).fetch(1)[0]
 		blip = fullwavelet.blips[self.blip_id]
 		f = models.finger_blip(blip, parent, wavelet=self.dbw)
 		models.insert(f, True)
@@ -95,6 +95,7 @@ def main():
     run_wsgi_app(webapp.WSGIApplication([
         ('/queue/load-wavelet', Load),
         ('/queue/insert-blip', Insert),
+        ('/queue/find-blip', Find),
         ('/queue/scan', Scan),
         ('/queue/purge', Purge)
     ]))
