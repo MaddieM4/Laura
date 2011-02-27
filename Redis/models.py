@@ -1,31 +1,34 @@
-from sanitizer import sanitize, output
+import sanitizer
 import random
+import logging
 
 class Message:
 	''' A message in the database. '''
 	def __init__(self, text, author="noone@example", parent=0, id=None):
-		self.text = sanitize(text)
+		self.text = sanitizer.filter(text)
 		self.author = author
-		self.parent = parent
+		self.parent = int(parent)
 		self.id = id
+		self.cachedMarkov = None
 
 	@property
 	def has_id(self):
 		return self.id != None
 
 	def markov(self):
-		return Markov(self.text)
+		if self.cachedMarkov == None:
+			self.cachedMarkov = Markov(self.text)
+		return self.cachedMarkov
 
 	def similarity(self, other):
-		s = self.markov().similarity(other.markov())*0.8
-		if self.author == other.author:
-			s += .1
-		if self.author == other.author:
-			s += .1		
+		s = self.markov().similarity(other.markov())
+		logging.info("Models.Message similarity = "+str(s))
+		return s
 
 class Markov(dict):
-	def __init__(self, text, length):
+	def __init__(self, text, length=8):
 		words = text.split()
+		logging.info(text)
 		for i in range(1,length):
 			for x in range(len(words)):
 				local = words[x:x+i]
@@ -33,21 +36,25 @@ class Markov(dict):
 					self.incr(local)
 		self.maxkeylen = length
 
-	def incr(self, chain):
-		if tuple(chain) in self:
-			self[tuple(chain)] += 1
+	def incr(self, chain, amount=1):
+		tup = tuple(chain)
+		if tup in self:
+			self[tup] += amount
 		else:
-			self[tuple(chain)] = 1
+			self[tup] = amount
+		#logging.info("self["+str(tup)+"] = " +str(self[tup]))
 
 	def spit(self, chain = []):
 		if chain == []:
 			chain = ['--start*']
 		# get weight of all possibilities
 		poss, total = self.poss(chain)
+		if total == 0:
+			return "Not enough parental data to construct sentences."
 		# pick one at random
-		chain += self.randposs(poss, total)
+		chain.append(self.randposs(poss, total))
 		if chain[-1:] == "--end*":
-			return output(" ".join(chain))
+			return sanitizer.output(" ".join(chain))
 		else:
 			return self.spit(chain)
 
@@ -61,18 +68,20 @@ class Markov(dict):
 	def similarity(self, other):
 		mine = self.singles()
 		yours = other.singles()
-		total = 0
-		match = 0
+		total = 0.0
+		match = 0.0
 		for i in mine:
 			if i in yours:
+				#logging.info(i)
 				matched = mine[i] + yours[i]
 				total += matched
-				match += match
+				match += matched
 				del yours[i]
 			else:
 				total += mine[i]
 		for i in yours:
 			total += yours[i]
+		logging.info("%s/%s" %(str(match),str(total)))
 		return match/total
 
 	def singles(self):
@@ -80,6 +89,7 @@ class Markov(dict):
 		for i in self:
 			if len(i) == 1:
 				results[i[0]] = self[i]
+		#logging.info(results)
 		return results
 
 	def poss(self, chain):
@@ -97,3 +107,27 @@ class Markov(dict):
 				else:
 					all[target] = 1
 		return all, total
+
+	def __iadd__(self, other):
+		for i in other:
+			self.incr(i, other[i])
+
+	def __mul__(self, amount):
+		result = {}
+		for i in self:
+			result[i] = self[i]*amount
+		return result
+
+class Role:
+	def __init__(self):
+		self.authors = []
+		self.roles = []
+
+	def insert(self, author):
+		if author in self.authors:
+			role = self.authors.index(author)
+		else:
+			self.authors.append(author)
+			role = len(self.authors)-1
+		self.roles.append(role)
+		return role

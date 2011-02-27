@@ -7,6 +7,16 @@ def sanitize(string):
 	string = " --paragraph* ".join(rsplit)
 	return " ".join(['--start*']+string.split()+['--end*'])
 
+
+def sanitized_already(string):
+	return sanitize(output(string)) == string
+
+def filter(string):
+	if sanitized_already(string):
+		return string
+	else:
+		return sanitize(string)
+
 def output(string):
 	string = string.replace("--start* ","")
 	string = string.replace("--paragraph* ","")

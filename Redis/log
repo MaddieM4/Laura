@@ -1,0 +1,65 @@
+
+INFO:root:New space allocated: 1
+INFO:root:Saving Message 1
+INFO:root:Loading Message 1
+INFO:root:New space allocated: 2
+INFO:root:Saving Message 2
+INFO:root:Loading Message 2
+INFO:root:Loading Message 1
+INFO:root:--start* A new lap --end*
+INFO:root:--start* Bollocks on all of you. BY THE TRUCKLOAD. I HATE YOU ALL. --end*
+INFO:root:4.0/19.0
+INFO:root:Models.Message similarity = 0.210526315789
+INFO:root:New space allocated: 3
+INFO:root:Saving Message 3
+INFO:root:Loading Message 3
+INFO:root:Loading Message 1
+INFO:root:--start* lap year --end*
+INFO:root:--start* Bollocks on all of you. BY THE TRUCKLOAD. I HATE YOU ALL. --end*
+INFO:root:4.0/18.0
+INFO:root:Models.Message similarity = 0.222222222222
+INFO:root:Loading Message 2
+INFO:root:--start* A new lap --end*
+INFO:root:6.0/9.0
+INFO:root:Models.Message similarity = 0.666666666667
+INFO:root:Loading Message 3
+INFO:root:
+INFO:root:Loading Message 1
+INFO:root:Loading Message 0
+INFO:root:Loading Message 3
+INFO:root:
+INFO:root:Loading Message 1
+INFO:root:Loading Message 0
+INFO:root:Loading Message 3
+INFO:root:
+INFO:root:Loading mi where i=1
+INFO:root:Loading Message 1
+INFO:root:Loading Message 0
+INFO:root:Loading Message 3
+INFO:root:
+INFO:root:Loading mi where i=1
+INFO:root:Loading Message 1
+INFO:root:0
+INFO:root:Loading Message 0
+INFO:root:Loading Message 3
+INFO:root:
+INFO:root:Loading mi where i=1
+INFO:root:Loading Message 1
+INFO:root:Loading Message 3
+INFO:root:
+INFO:root:Loading mi where i=1
+INFO:root:Loading Message 1
+INFO:root:Loading mi where i=2
+INFO:root:Loading Message 2
+INFO:root:Loading Message 3
+INFO:root:
+INFO:root:Loading mi where i=1
+INFO:root:Loading Message 1
+INFO:root:Loading mi where i=2
+INFO:root:Loading Message 2
+INFO:root:Loading Message 3
+INFO:root:
+INFO:root:Loading mi where i=1
+INFO:root:Loading Message 1
+INFO:root:Loading mi where i=2
+INFO:root:Loading Message 2

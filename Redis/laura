@@ -4,6 +4,9 @@
 
 import sys
 import argparse
+import logging
+
+logging.basicConfig(filename="log",level=logging.INFO)
 
 parser = argparse.ArgumentParser()
 subparsers = parser.add_subparsers()
@@ -32,10 +35,14 @@ def pushf(args):
 	if args.parent:
 		extra['parent'] = args.parent
 	m = models.Message(args.text, **extra)
-	print mydb.save_message(m)
+	supermessage = mydb.new_message(m)
+	print supermessage.id
+	supermessage.run_sim()
 
 def pullf(args):
-	pass
+	# Pull a response
+	M = db.Message(mydb, args.target)
+	print M.make_response()
 
 def readf(args):
 	m = mydb.load_message(args.target)
