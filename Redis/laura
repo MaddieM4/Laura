@@ -5,7 +5,8 @@
 import sys
 
 usage = \
-"""Usage: laura push [-p parent] [-m message] [-a author]
+"""Usage: laura push [-p parent] [-a author] message
+       laura pull id
 """
 
 def die(string):
@@ -13,5 +14,14 @@ def die(string):
 	print usage
 	quit()
 
-if len(sys.argv)==1:
-	die("Wrong number of arguments (0)")
+if len(sys.argv)<=2:
+	die("Wrong number of arguments (%d)" % (len(sys.argv)-1) )
+
+if sys.argv[1] == "push":
+	# Push a message, return the ID
+	pass
+elif sys.argv[1] == "pull":
+	# Pull out a response
+	pass
+else:
+	die("Unknown command: "+sys.argv[1])
