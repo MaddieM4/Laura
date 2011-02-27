@@ -3,25 +3,56 @@
 # High-efficiency local version of Laura
 
 import sys
+import argparse
 
-usage = \
-"""Usage: laura push [-p parent] [-a author] message
-       laura pull id
-"""
+parser = argparse.ArgumentParser()
+subparsers = parser.add_subparsers()
 
-def die(string):
-	print "laura:",string
-	print usage
-	quit()
+push = subparsers.add_parser("push", help="Push a message in")
+pull = subparsers.add_parser("pull", help="Pull a response out")
+read = subparsers.add_parser("read", help="Return message as JSON")
+flush = subparsers.add_parser("flush", help="Delete all data")
 
-if len(sys.argv)<=2:
-	die("Wrong number of arguments (%d)" % (len(sys.argv)-1) )
+push.add_argument("-a","--author")
+push.add_argument("-p","--parent")
+push.add_argument("text")
 
-if sys.argv[1] == "push":
+pull.add_argument("target", help="The ID of a message already in storage")
+read.add_argument("target", help="The ID of a message already in storage")
+
+import models
+import db
+mydb = db.DB()
+
+def pushf(args):
 	# Push a message, return the ID
+	extra = {}
+	if args.author:
+		extra['author'] = args.author
+	if args.parent:
+		extra['parent'] = args.parent
+	m = models.Message(args.text, **extra)
+	print mydb.save_message(m)
+
+def pullf(args):
 	pass
-elif sys.argv[1] == "pull":
-	# Pull out a response
-	pass
-else:
-	die("Unknown command: "+sys.argv[1])
+
+def readf(args):
+	m = mydb.load_message(args.target)
+	print "{"
+	print "\t'Author':'%s'" % str(m.author)
+	print "\t'Parent':'%s'" % m.parent
+	print "\t'Message':'%s'" % m.text
+	print "}"
+
+def flushf(args):
+	# Flush the DB
+	mydb.flush()
+
+push.set_defaults(func=pushf)
+pull.set_defaults(func=pullf)
+read.set_defaults(func=readf)
+flush.set_defaults(func=flushf)
+
+parsed = parser.parse_args(sys.argv[1:])
+parsed.func(parsed)
