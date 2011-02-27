@@ -1,0 +1,9 @@
+queue:
+- name: load-wavelet
+  rate: 12/m
+- name: find-blip
+  rate: 20/s
+- name: insert-blip
+  rate: 10/s
+- name: purge
+  rate: 2/s
