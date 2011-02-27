@@ -1,0 +1,17 @@
+#!/usr/bin/python
+
+# High-efficiency local version of Laura
+
+import sys
+
+usage = \
+"""Usage: laura push [-p parent] [-m message] [-a author]
+"""
+
+def die(string):
+	print "laura:",string
+	print usage
+	quit()
+
+if len(sys.argv)==1:
+	die("Wrong number of arguments (0)")
