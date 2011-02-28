@@ -21,8 +21,11 @@ class DB:
 		return message.id
 
 	def load_message(self, id):
+		id = int(id)
 		if not id:
 			raise IndexError("Cannot attempt to read Message 0")
+		if id>len(self) or id<0:
+			raise IndexError("Message ID out of range ("+str(id)+")")
 		logging.info("Loading Message "+str(id))
 		address = self.get_m_address(id)
 		author = self.get(address, "author")

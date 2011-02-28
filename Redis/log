@@ -63,3 +63,11 @@ INFO:root:Loading mi where i=1
 INFO:root:Loading Message 1
 INFO:root:Loading mi where i=2
 INFO:root:Loading Message 2
+INFO:root:Loading Message 2
+INFO:root:Loading Message 2
+INFO:root:Loading Message 1
+INFO:root:Loading Message 3
+INFO:root:Loading Message 4
+INFO:root:Loading Message -10
+INFO:root:Loading Message -1
+INFO:root:Loading Message 3
